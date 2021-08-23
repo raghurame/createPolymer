@@ -10,6 +10,7 @@ def cutString (inputString, subString1, subString2):
 	return inputString [startIndex:endIndex]
 
 def readConfig (configFile):
+	# Reads the config file to get user defined input parameters
 	with open (configFile, "r") as file:
 		fileString = file.read ()
 
@@ -36,6 +37,9 @@ def readConfig (configFile):
 	return translateAxis [1], int (endGroup1 [1].replace ("a", "")), int (endGroup2 [1].replace ("a", "")), int (repeatMonomers [1]), float (translateDistance [1]), mainChain [1], pendantGroup [1], int (improper [1])
 
 def createPolymer (cmlFile, atomTypesFile, configFile):
+	# Inputs monomer atomic coordinates from 'cmlFile'
+	# Replicates the monomer based on information given in 'configFile'
+	# Bond information are also read from 'cmlFile'
 	translateAxis, endGroup1, endGroup2, repeatMonomers, translateDistance, mainChain, pendantGroup, improper = readConfig (configFile)
 
 	isXTranslate = 0
@@ -60,9 +64,13 @@ def createPolymer (cmlFile, atomTypesFile, configFile):
 	atomEntries = []
 	bondEntries = []
 	polymerEntries = []
+
+	# String processing is done to extract the necessary information from input 'cmlFile'
 	atomInput = cutString (cmlInput, "<atomArray>", "</atomArray>")
 	atomArray = atomInput.split ("\n")
 	nAtomsPerMonomer = 0
+
+	# Extracting atomic coordinates
 	for atoms in atomArray:
 		if (len (atoms) > 10):
 			atomEntries.append ({'id': int (cutString (atoms, "<atom id=\"", "\" elementType=\"").replace ("a", "")), 'elementType': cutString (atoms, "\" elementType=\"", "\" x3=\""), 'x': float (cutString (atoms, "\" x3=\"", "\" y3=\"")), 'y': float (cutString (atoms, "\" y3=\"", "\" z3=\"")), 'z': float (cutString (atoms, "\" z3=\"", "\"/>")), 'bondAtom1': 0, 'bondAtom2': 0, 'bondAtom3': 0, 'bondAtom4': 0})
@@ -71,6 +79,7 @@ def createPolymer (cmlFile, atomTypesFile, configFile):
 	bondInput = cutString (cmlInput, "<bondArray>", "</bondArray>")
 	bondArray = bondInput.split ("\n")
 	
+	# Extracting bond information
 	for bonds in bondArray:
 		if (len (bonds) > 10):
 			bondAtoms = cutString (bonds, "atomRefs2=\"", "\" order=\"").replace ("a", "")
@@ -94,9 +103,11 @@ def createPolymer (cmlFile, atomTypesFile, configFile):
 			elif (atomEntries [int (atom2) - 1]['bondAtom4'] == 0):
 				atomEntries [int (atom2) - 1]['bondAtom4'] = int (atom1)
 
+	# Replicating the initial monomeric structure
 	endGroupArr = []
 	for x in range (0, repeatMonomers, 1):
 		for atoms in atomEntries:
+			# atoms ['bondAtom1'] are edited if they contain non-zero value
 			if (atoms ['bondAtom1'] > 0):
 				bondAtom1_polymerEntries = atoms ['bondAtom1'] + (x * nAtomsPerMonomer)
 			else:
@@ -114,6 +125,8 @@ def createPolymer (cmlFile, atomTypesFile, configFile):
 			else:
 				bondAtom4_polymerEntries = 0
 
+			# Each monomer has endGroup1 and endGroup2
+			# Bonds are defined between these endGroups while replicating the monomer
 			if (x == 0 and atoms ['id'] == endGroup2):
 				bondAtom4_polymerEntries = endGroup1 + ((x + 1) * nAtomsPerMonomer)
 			elif (x == (repeatMonomers - 1) and atoms ['id'] == endGroup1):
@@ -124,11 +137,19 @@ def createPolymer (cmlFile, atomTypesFile, configFile):
 				if (atoms ['id'] == endGroup2):
 					bondAtom4_polymerEntries = endGroup1 + ((x + 1) * nAtomsPerMonomer)
 
+			# Above info is added to polymerEntries
+			# polymerEntries array is the return type
 			polymerEntries.append ({'sino': atoms ['id'] + (x * nAtomsPerMonomer), 'monomerAtomID': atoms ['id'], 'elementType': atoms ['elementType'], 'atomType': atomTypes [atoms ['elementType']], 'molType': 1, 'charge': 0, 'x': round (atoms ['x'] + (isXTranslate * x * translateDistance), 4), 'y': round (atoms ['y'] + (isYTranslate * x * translateDistance), 4), 'z': round (atoms ['z'] + (isZTranslate * x * translateDistance), 4), 'bondAtom1': bondAtom1_polymerEntries, 'bondAtom2': bondAtom2_polymerEntries, 'bondAtom3': bondAtom3_polymerEntries, 'bondAtom4': bondAtom4_polymerEntries})
 
 	return polymerEntries, atomEntries, atomTypes
 
 def createPolymer2 (cmlFile, atomTypesFile, configFile):
+	# 
+	# ~~~~~~~~~~~~~~~~~
+	# OUTDATED FUNTION
+	# ~~~~~~~~~~~~~~~~~
+	# This function is no longer used currently
+	# 
 	translateAxis, endGroup1, endGroup2, repeatMonomers, translateDistance = readConfig (configFile)
 
 	isXTranslate = 0
@@ -193,6 +214,7 @@ def createPolymer2 (cmlFile, atomTypesFile, configFile):
 	return polymerEntries, atomTypes
 
 def extract_numbers (line):
+	# Extracts numbers from a line of type 'string'
 	lineString = line.replace ("\t", ",").replace (" ", ",").replace ("\n", "")
 	for item in lineString.split (","):
 		try:
@@ -201,6 +223,12 @@ def extract_numbers (line):
 			pass
 
 def readAtomInfo (inputFileName, atomInfo):
+	# 
+	# ~~~~~~~~~~~~~~~~~
+	# OUTDATED FUNTION
+	# ~~~~~~~~~~~~~~~~~
+	# This function is no longer used currently
+	# 
 	atomTypeArr = []
 	with open ("atomEntries.testing", "r") as inputFile:
 		for line in inputFile:
@@ -214,11 +242,18 @@ def readAtomInfo (inputFileName, atomInfo):
 	return atomInfo, atomTypeArr
 
 def createBonds (polymerEntries, bondInfo):
+	# Based on the list of connected atoms, this function
+	# creates bond information in LAMMPS format
 	lineArray = []
 	sino_bond = 1
+
+	# bondTypeArr array is used to determine the bondType
 	bondTypeArr = []
 	bondTypeArr.append({'atom1': 0, 'atom2': 0, 'bondType': 0})
 
+	# Check if the bond is already present
+	# This function returns 0 is the bond is already present
+	# and returns 1 if otherwise
 	def bondCheck (atom1, atom2, bondInfo):
 		for bond in bondInfo:
 			if ((atom1 == bond['bondAtom1'] or atom1 == bond['bondAtom2']) and (atom2 == bond['bondAtom1'] or atom2 == bond['bondAtom2'])):
@@ -226,8 +261,14 @@ def createBonds (polymerEntries, bondInfo):
 
 		return 1
 
+	# Determine the bondType
+	# This function takes two atoms of a bond and checks for old records
+	# If record is not present, then a new bondType is assigned
 	def findBondType (atom1, atom2, bondTypeArr):
 		returnBondType = 0
+
+		# Atoms are arranged in ascending order
+		# To make sure atom1---atom2 is the same as atom2---atom1
 		if (atom1 < atom2):
 			ascAtom1 = atom1
 			ascAtom2 = atom2
@@ -246,6 +287,7 @@ def createBonds (polymerEntries, bondInfo):
 
 		return returnBondType, bondTypeArr
 
+	# Add bonds to bondInfo array
 	def addBond (atomLine, polymerEntries, dictString, bondInfo, sino_bond, bondTypeArr):
 		if (atomLine [dictString] and bondCheck (atomLine ['sino'], atomLine [dictString], bondInfo)):
 			try:
@@ -262,6 +304,9 @@ def createBonds (polymerEntries, bondInfo):
 
 		return bondInfo, bondTypeArr, sino_bond
 
+	# Iterate through the polymer to add bonds
+	# Bond info are stored in 'bondInfo' array
+	# Bond types are stored in 'bondTypeArr'
 	for atomLine in polymerEntries:
 		bondInfo, bondTypeArr, sino_bond = addBond (atomLine, polymerEntries, 'bondAtom1', bondInfo, sino_bond, bondTypeArr)
 		bondInfo, bondTypeArr, sino_bond = addBond (atomLine, polymerEntries, 'bondAtom2', bondInfo, sino_bond, bondTypeArr)
@@ -272,6 +317,8 @@ def createBonds (polymerEntries, bondInfo):
 
 def createAngles (polymerEntries, angleInfo, bondInfo):
 	# angleInfo contains sino, angleType, angleAtom1, angleAtom2, angleAtom3, angleAtom1Type, angleAtom2Type, angleAtom3Type
+	# This function uses bondInfo to define angleInfo
+	# angleInfo array is used to create LAMMPS angle entries
 	angleTypeArr = []
 	sino_angle = 1
 
@@ -283,11 +330,18 @@ def createAngles (polymerEntries, angleInfo, bondInfo):
 	angleTypeArr.append ({'atom1': 0, 'atom2': 0, 'atom3': 0, 'angleType': 0})
 
 	def findConnectedAtoms (concernedBondAtom, primaryConnect, bondInfo, connectedAtoms):
+		# concernedBondAtom = bondAtom1 from bondInfo
+		# primaryConnect = bondAtom2 from bondInfo
+
+		# Adding concernedBondAtom and primaryConnect to their respective 'connectedAtoms[]' dict of lists
 		if (primaryConnect not in connectedAtoms [concernedBondAtom]):
 			connectedAtoms [concernedBondAtom].append (primaryConnect)
 		if (concernedBondAtom not in connectedAtoms [primaryConnect]):
 			connectedAtoms [primaryConnect].append (concernedBondAtom)
 
+		# Iterating through bondInfo list
+		# Checking for all the atoms connected to concernedBondAtom and primaryConnect
+		# All the connected atoms are stored in 'connectedAtoms[]' dict of lists
 		for bondLine in bondInfo:
 			if ((bondLine ['bondAtom1'] == concernedBondAtom) and (bondLine ['bondAtom2'] not in connectedAtoms [concernedBondAtom])):
 				connectedAtoms [concernedBondAtom].append (bondLine ['bondAtom2'])
@@ -298,6 +352,8 @@ def createAngles (polymerEntries, angleInfo, bondInfo):
 
 		return connectedAtoms
 
+	# Iterates through bondInfo array
+	# All connected atoms are used to create 'angle' list
 	for bondLine in bondInfo:
 		connectedAtoms = findConnectedAtoms (bondLine ['bondAtom1'], bondLine ['bondAtom2'], bondInfo, connectedAtoms)
 	
@@ -380,12 +436,12 @@ def createDihedrals (polymerEntries, dihedralInfo, angleInfo, bondInfo):
 	return dihedralInfo, dihTypeArr
 
 def createImpropers (polymerEntries, atomEntries, improperInfo, configFile):
-	# sino impType impAtom1 impAtom2 impAtom3 impAtom4 (impAtom2 is the central atom from main chain)
+	# sino, impType, impAtom1, impAtom2, impAtom3, impAtom4 (impAtom2 is the central atom from main chain)
 	# The following code assumes there is only one type of improper angle
 	# Because the most common use for an improper angle is to maintain tacticity of the molecule
+
+	# Temp dict to store atom IDs (sino)
 	improperEntries = {}
-	improperTypeArr = []
-	improperTypeArr.append ({'atom1': 0, 'atom2': 0, 'atom3': 0, 'atom4': 0, 'improperType': 0})
 
 	translateAxis, endGroup1, endGroup2, repeatMonomers, translateDistance, mainChain, pendantGroup, improper = readConfig (configFile)
 
@@ -393,107 +449,133 @@ def createImpropers (polymerEntries, atomEntries, improperInfo, configFile):
 	mainChainAtoms = mainChain.split (",")
 	mainChainAtoms = [int(i) for i in mainChainAtoms]
 	pendantGroupAtoms = pendantGroup.replace ("a", "").replace (" ", "")
-	# print (mainChainAtoms)
-	# print (pendantGroupAtoms)
-	# print (improper)
 
 	# Find the atom (from main chain) connected to the pendant atom
-	mainChainAtomConnectedToPendant = 0
 	mainChainAtomConnectedToPendant_connectedMainChainAtoms = []
 	mainChainAtomsArray = []
 	pendantAtomsArray = []
 
+	# Classifying the atoms into two groups, (i) mainChainAtoms, and (ii) pendantGroupAtoms
 	for atoms in polymerEntries:
 		if (str (atoms ['monomerAtomID']) in mainChainAtoms):
 			mainChainAtomsArray.append (atoms)
 		if (str (atoms ['monomerAtomID']) in pendantGroupAtoms):
 			pendantAtomsArray.append (atoms)
 
-	# print ("mainChainAtoms", mainChainAtoms)
-	# print ("pendantGroupAtoms", pendantGroupAtoms)
-	# print ("mainChainAtomsArray", mainChainAtomsArray)
-	# print ("pendantAtomsArray", pendantAtomsArray)
-
+	# Iterate through the pendant atoms
+	# Find the main chain atom directly connected to the pendant atoms
+	# Then find the two main chain atoms connected to the original main chain atom
 	for atoms in pendantAtomsArray:
-		improperEntries [atoms['sino']] = []
-		# print ("\n\n")
-		if (atoms ['bondAtom1'] and polymerEntries [atoms ['bondAtom1'] - 1]['monomerAtomID'] in mainChainAtoms):
-			# polymerEntries [atoms ['bondAtom1'] - 1]
-			mainChainAtomConnectedToPendant = 0
+		bondAtom1 = atoms ['bondAtom1']
+		bondAtom2 = atoms ['bondAtom2']
+		bondAtom3 = atoms ['bondAtom3']
+		bondAtom4 = atoms ['bondAtom4']
+		currentSino = atoms['sino']
+
+		# improperEntries contain the final information to be returned
+		improperEntries [currentSino] = []
+
+		# Checking if the bondAtom1 is not zero and if the bondAtom1 is present in main chain (as specified in the *.config file)
+		# This 'if' statement gives the main chain atom that is connected to pendant group (impAtom2)
+		if (bondAtom1 and polymerEntries [bondAtom1 - 1]['monomerAtomID'] in mainChainAtoms):
 			mainChainAtomConnectedToPendant_connectedMainChainAtoms = []
-			mainChainAtomConnectedToPendant = polymerEntries [atoms ['bondAtom1'] - 1]['monomerAtomID']
-			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [atoms ['bondAtom1'] - 1]['bondAtom1'], polymerEntries [atoms ['bondAtom1'] - 1]['bondAtom2'], polymerEntries [atoms ['bondAtom1'] - 1]['bondAtom3'], polymerEntries [atoms ['bondAtom1'] - 1]['bondAtom4']]
-			# print (mainChainAtomConnectedToPendant_connectedMainChainAtoms)
+
+			# All atoms connected to that specific main chain atom (impAtom2)
+			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [bondAtom1 - 1]['bondAtom1'], polymerEntries [bondAtom1 - 1]['bondAtom2'], polymerEntries [bondAtom1 - 1]['bondAtom3'], polymerEntries [bondAtom1 - 1]['bondAtom4']]
+
+			# Iterating through the atoms connected to impAtom2
+			# sino of all connected atoms are added to improperEntries dict
 			for atoms1 in mainChainAtomConnectedToPendant_connectedMainChainAtoms:
 				if (polymerEntries [atoms1 - 1]['monomerAtomID'] in mainChainAtoms):
-					# print ("Pendant atoms: ", atoms)
-					# print ("first main chain atom: ", polymerEntries [atoms ['bondAtom1'] - 1])
-					# print ("second main chain atom: ", polymerEntries [atoms1 - 1])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms ['bondAtom1'] - 1]['sino'])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms1 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [bondAtom1 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [atoms1 - 1]['sino'])
 
-		if (atoms ['bondAtom2'] and polymerEntries [atoms ['bondAtom2'] - 1]['monomerAtomID'] in mainChainAtoms):
-			# polymerEntries [atoms ['bondAtom2'] - 1]
-			mainChainAtomConnectedToPendant = 0
+		# Checking if the bondAtom1 is not zero and if the bondAtom1 is present in main chain (as specified in the *.config file)
+		# This 'if' statement gives the main chain atom that is connected to pendant group (impAtom2)
+		if (bondAtom2 and polymerEntries [bondAtom2 - 1]['monomerAtomID'] in mainChainAtoms):
 			mainChainAtomConnectedToPendant_connectedMainChainAtoms = []
-			mainChainAtomConnectedToPendant = polymerEntries [atoms ['bondAtom2'] - 1]['monomerAtomID']
-			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [atoms ['bondAtom2'] - 1]['bondAtom1'], polymerEntries [atoms ['bondAtom2'] - 1]['bondAtom2'], polymerEntries [atoms ['bondAtom2'] - 1]['bondAtom3'], polymerEntries [atoms ['bondAtom2'] - 1]['bondAtom4']]
-			# print (mainChainAtomConnectedToPendant_connectedMainChainAtoms)
+
+			# All atoms connected to that specific main chain atom (impAtom2)
+			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [bondAtom2 - 1]['bondAtom1'], polymerEntries [bondAtom2 - 1]['bondAtom2'], polymerEntries [bondAtom2 - 1]['bondAtom3'], polymerEntries [bondAtom2 - 1]['bondAtom4']]
+
+			# Iterating through the atoms connected to impAtom2
+			# sino of all connected atoms are added to improperEntries dict
 			for atoms1 in mainChainAtomConnectedToPendant_connectedMainChainAtoms:
 				if (polymerEntries [atoms1 - 1]['monomerAtomID'] in mainChainAtoms):
-					# print ("Pendant atoms: ", atoms)
-					# print ("first main chain atom: ", polymerEntries [atoms ['bondAtom2'] - 1])
-					# print ("second main chain atom: ", polymerEntries [atoms1 - 1])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms ['bondAtom2'] - 1]['sino'])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms1 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [bondAtom2 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [atoms1 - 1]['sino'])
 
-		if (atoms ['bondAtom3'] and polymerEntries [atoms ['bondAtom3'] - 1]['monomerAtomID'] in mainChainAtoms):
-			# polymerEntries [atoms ['bondAtom3'] - 1]
-			mainChainAtomConnectedToPendant = 0
+		# Checking if the bondAtom1 is not zero and if the bondAtom1 is present in main chain (as specified in the *.config file)
+		# This 'if' statement gives the main chain atom that is connected to pendant group (impAtom2)
+		if (bondAtom3 and polymerEntries [bondAtom3 - 1]['monomerAtomID'] in mainChainAtoms):
 			mainChainAtomConnectedToPendant_connectedMainChainAtoms = []
-			mainChainAtomConnectedToPendant = polymerEntries [atoms ['bondAtom3'] - 1]['monomerAtomID']
-			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [atoms ['bondAtom3'] - 1]['bondAtom1'], polymerEntries [atoms ['bondAtom3'] - 1]['bondAtom2'], polymerEntries [atoms ['bondAtom3'] - 1]['bondAtom3'], polymerEntries [atoms ['bondAtom3'] - 1]['bondAtom4']]
-			# print (mainChainAtomConnectedToPendant_connectedMainChainAtoms)
+
+			# All atoms connected to that specific main chain atom (impAtom2)
+			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [bondAtom3 - 1]['bondAtom1'], polymerEntries [bondAtom3 - 1]['bondAtom2'], polymerEntries [bondAtom3 - 1]['bondAtom3'], polymerEntries [bondAtom3 - 1]['bondAtom4']]
+
+			# Iterating through the atoms connected to impAtom2
+			# sino of all connected atoms are added to improperEntries dict
 			for atoms1 in mainChainAtomConnectedToPendant_connectedMainChainAtoms:
 				if (polymerEntries [atoms1 - 1]['monomerAtomID'] in mainChainAtoms):
-					# print ("Pendant atoms: ", atoms)
-					# print ("first main chain atom: ", polymerEntries [atoms ['bondAtom3'] - 1])
-					# print ("second main chain atom: ", polymerEntries [atoms1 - 1])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms ['bondAtom3'] - 1]['sino'])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms1 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [bondAtom3 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [atoms1 - 1]['sino'])
 
-		if (atoms ['bondAtom4'] and polymerEntries [atoms ['bondAtom4'] - 1]['monomerAtomID'] in mainChainAtoms):
-			# polymerEntries [atoms ['bondAtom4'] - 1]
-			mainChainAtomConnectedToPendant = 0
+		# Checking if the bondAtom1 is not zero and if the bondAtom1 is present in main chain (as specified in the *.config file)
+		# This 'if' statement gives the main chain atom that is connected to pendant group (impAtom2)
+		if (bondAtom4 and polymerEntries [bondAtom4 - 1]['monomerAtomID'] in mainChainAtoms):
 			mainChainAtomConnectedToPendant_connectedMainChainAtoms = []
-			mainChainAtomConnectedToPendant = polymerEntries [atoms ['bondAtom4'] - 1]['monomerAtomID']
-			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [atoms ['bondAtom4'] - 1]['bondAtom1'], polymerEntries [atoms ['bondAtom4'] - 1]['bondAtom2'], polymerEntries [atoms ['bondAtom4'] - 1]['bondAtom3'], polymerEntries [atoms ['bondAtom4'] - 1]['bondAtom4']]
-			# print (mainChainAtomConnectedToPendant_connectedMainChainAtoms)
+
+			# All atoms connected to that specific main chain atom (impAtom2)
+			mainChainAtomConnectedToPendant_connectedMainChainAtoms = [polymerEntries [bondAtom4 - 1]['bondAtom1'], polymerEntries [bondAtom4 - 1]['bondAtom2'], polymerEntries [bondAtom4 - 1]['bondAtom3'], polymerEntries [bondAtom4 - 1]['bondAtom4']]
+
+			# Iterating through the atoms connected to impAtom2
+			# sino of all connected atoms are added to improperEntries dict
 			for atoms1 in mainChainAtomConnectedToPendant_connectedMainChainAtoms:
 				if (polymerEntries [atoms1 - 1]['monomerAtomID'] in mainChainAtoms):
-					# print ("Pendant atoms: ", atoms)
-					# print ("first main chain atom: ", polymerEntries [atoms ['bondAtom4'] - 1])
-					# print ("second main chain atom: ", polymerEntries [atoms1 - 1])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms ['bondAtom4'] - 1]['sino'])
-					improperEntries [atoms['sino']].append (polymerEntries [atoms1 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [bondAtom4 - 1]['sino'])
+					improperEntries [currentSino].append (polymerEntries [atoms1 - 1]['sino'])
 
-	# for atoms in polymerEntries:
-	# 	if (atoms ['monomerAtomID'] == mainChainAtomConnectedToPendant):
-	# 		polymerEntries [atoms ['bondAtom1'] - 1]['monomerAtomID'] polymerEntries [atoms ['bondAtom2'] - 1]['monomerAtomID'] polymerEntries [atoms ['bondAtom3'] - 1]['monomerAtomID'] polymerEntries [atoms ['bondAtom4'] - 1]['monomerAtomID']
+	# Internal 'sino' count for improperInfo array
+	impCount = 0
 
-	# for atoms in polymerEntries:
-	# 	print (atoms)
-	# 	sleep (1)
-
-	print (improperEntries)
-
+	# Iterating through the improperEntries dict (temporary variable)
 	for entries in improperEntries:
-		print (entries, improperEntries [entries])
-		sleep (1)
+		impAtom1 = 0
+		impAtom2 = 0
+		impAtom3 = 0
+		impAtom4 = 0
+		impCount += 1
 
-	return improperInfo, improperTypeArr
+		# impAtom1 is set as the pendant atom by default
+		impAtom1 = entries
+		for entries1 in improperEntries [entries]:
+			# impAtom2 is the center atom
+			# It is the main chain atom directly connected to the pendant atom
+			# In the dict of array, it is repeated twice (extracted from bond connection information)
+			if (improperEntries [entries].count (entries1) == 2):
+				impAtom2 = entries1
+			# Remaining atoms are added to impAtom3 and impAtom4
+			elif (impAtom3 == 0):
+				impAtom3 = entries1
+			elif (impAtom4 == 0):
+				impAtom4 = entries1
 
-def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, improperTypeArr):
+		# The length is less than 4 for end groups
+		# No improper is set for end group monomers
+		# So they are atactic in the setup.
+		# Tacticity of remaining segments are set
+		if (len (improperEntries [entries]) == 4):
+			# improperInfo array is returned
+			# Only one type of improper is considered
+			# It is assumed that improper is set only to control tacticity
+			# and the polymer contains only one pendant group (simple polymer structures)
+			# For complex polymers with multiple pendant groups (or groups within groups)
+			# this code must be modified and several impTypes must be considered
+			improperInfo.append ({'sino': impCount, 'impType': 1, 'impAtom1': impAtom1, 'impAtom2': impAtom2, 'impAtom3': impAtom3, 'impAtom4': impAtom4})
+
+	return improperInfo
+
+def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo):
 
 	nAtoms = len (polymerEntries)
 	nBonds = len (bondInfo)
@@ -505,7 +587,7 @@ def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo
 	nBondTypes = len (bondTypeArr) - 1
 	nAngleTypes = len (angleTypeArr) - 1
 	nDihedralTypes = len (dihTypeArr) - 1
-	nImproperTypes = 0
+	nImproperTypes = 1
 
 	coords_x = []
 	coords_y = []
@@ -577,6 +659,6 @@ if __name__ == '__main__':
 	bondInfo, bondTypeArr = createBonds (polymerEntries, bondInfo)
 	angleInfo, angleTypeArr = createAngles (polymerEntries, angleInfo, bondInfo)
 	dihedralInfo, dihTypeArr = createDihedrals (polymerEntries, dihedralInfo, angleInfo, bondInfo)
-	improperInfo, improperTypeArr = createImpropers (polymerEntries, atomEntries, improperInfo, args.config)
+	improperInfo = createImpropers (polymerEntries, atomEntries, improperInfo, args.config)
 
-	printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, improperTypeArr)
+	printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo)
