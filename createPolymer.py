@@ -36,11 +36,28 @@ def readConfig (configFile):
 
 	return translateAxis [1], int (endGroup1 [1].replace ("a", "")), int (endGroup2 [1].replace ("a", "")), int (repeatMonomers [1]), float (translateDistance [1]), mainChain [1], pendantGroup [1], int (improper [1])
 
-def createPolymer (cmlFile, atomTypesFile, configFile):
+def readCharges (chargesFile):
+	chargesDict = {}
+	with open (chargesFile, "r") as file:
+		fileString = file.read ()
+
+	fileString2 = fileString.split ("\n")
+
+	for line in fileString2:
+		fileString3 = line.replace (" ", "").replace ("a", "")
+		fileString4 = fileString3.split (":")
+		if (len (fileString4) == 2):
+			chargesDict [int (fileString4[0])] = fileString4[1]
+
+	return chargesDict
+
+def createPolymer (cmlFile, atomTypesFile, configFile, chargesFile):
 	# Inputs monomer atomic coordinates from 'cmlFile'
 	# Replicates the monomer based on information given in 'configFile'
 	# Bond information are also read from 'cmlFile'
 	translateAxis, endGroup1, endGroup2, repeatMonomers, translateDistance, mainChain, pendantGroup, improper = readConfig (configFile)
+
+	chargesDict = readCharges (chargesFile)
 
 	isXTranslate = 0
 	isYTranslate = 0
@@ -73,7 +90,12 @@ def createPolymer (cmlFile, atomTypesFile, configFile):
 	# Extracting atomic coordinates
 	for atoms in atomArray:
 		if (len (atoms) > 10):
-			atomEntries.append ({'id': int (cutString (atoms, "<atom id=\"", "\" elementType=\"").replace ("a", "")), 'elementType': cutString (atoms, "\" elementType=\"", "\" x3=\""), 'x': float (cutString (atoms, "\" x3=\"", "\" y3=\"")), 'y': float (cutString (atoms, "\" y3=\"", "\" z3=\"")), 'z': float (cutString (atoms, "\" z3=\"", "\"/>")), 'bondAtom1': 0, 'bondAtom2': 0, 'bondAtom3': 0, 'bondAtom4': 0})
+			currentID = int (cutString (atoms, "<atom id=\"", "\" elementType=\"").replace ("a", ""))
+			currentElementType = cutString (atoms, "\" elementType=\"", "\" x3=\"")
+			currentX = float (cutString (atoms, "\" x3=\"", "\" y3=\""))
+			currentY = float (cutString (atoms, "\" y3=\"", "\" z3=\""))
+			currentZ = float (cutString (atoms, "\" z3=\"", "\"/>"))
+			atomEntries.append ({'id': currentID, 'elementType': currentElementType, 'x': currentX, 'y': currentY, 'z': currentZ, 'charge': chargesDict [currentID], 'bondAtom1': 0, 'bondAtom2': 0, 'bondAtom3': 0, 'bondAtom4': 0})
 			nAtomsPerMonomer = int (cutString (atoms, "<atom id=\"", "\" elementType=\"").replace ("a", ""))
 
 	bondInput = cutString (cmlInput, "<bondArray>", "</bondArray>")
@@ -139,7 +161,7 @@ def createPolymer (cmlFile, atomTypesFile, configFile):
 
 			# Above info is added to polymerEntries
 			# polymerEntries array is the return type
-			polymerEntries.append ({'sino': atoms ['id'] + (x * nAtomsPerMonomer), 'monomerAtomID': atoms ['id'], 'elementType': atoms ['elementType'], 'atomType': atomTypes [atoms ['elementType']], 'molType': 1, 'charge': 0, 'x': round (atoms ['x'] + (isXTranslate * x * translateDistance), 4), 'y': round (atoms ['y'] + (isYTranslate * x * translateDistance), 4), 'z': round (atoms ['z'] + (isZTranslate * x * translateDistance), 4), 'bondAtom1': bondAtom1_polymerEntries, 'bondAtom2': bondAtom2_polymerEntries, 'bondAtom3': bondAtom3_polymerEntries, 'bondAtom4': bondAtom4_polymerEntries})
+			polymerEntries.append ({'sino': atoms ['id'] + (x * nAtomsPerMonomer), 'monomerAtomID': atoms ['id'], 'elementType': atoms ['elementType'], 'atomType': atomTypes [atoms ['elementType']], 'molType': 1, 'charge': atoms ['charge'], 'x': round (atoms ['x'] + (isXTranslate * x * translateDistance), 4), 'y': round (atoms ['y'] + (isYTranslate * x * translateDistance), 4), 'z': round (atoms ['z'] + (isZTranslate * x * translateDistance), 4), 'bondAtom1': bondAtom1_polymerEntries, 'bondAtom2': bondAtom2_polymerEntries, 'bondAtom3': bondAtom3_polymerEntries, 'bondAtom4': bondAtom4_polymerEntries})
 
 	return polymerEntries, atomEntries, atomTypes
 
@@ -642,8 +664,9 @@ if __name__ == '__main__':
 	parser.add_argument ("--cml", "-c", type = str, required = True)
 	parser.add_argument ("--atomtypes", "-at", type = str, required = True)
 	parser.add_argument ("--config", "-co", type = str, required = True)
+	parser.add_argument ("--charges", "-ch", type = str, required = True)
 	args = parser.parse_args ()
-	polymerEntries, atomEntries, atomTypes = createPolymer (args.cml, args.atomtypes, args.config)
+	polymerEntries, atomEntries, atomTypes = createPolymer (args.cml, args.atomtypes, args.config, args.charges)
 
 	atomTypeArr = []
 	# polymerEntries = []
