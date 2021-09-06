@@ -2,6 +2,7 @@ import argparse as a
 from time import sleep
 import decimal
 from itertools import combinations
+import sys
 
 def cutString (inputString, subString1, subString2):
 	startIndex = inputString.find (subString1) + len (subString1)
@@ -95,7 +96,11 @@ def createPolymer (cmlFile, atomTypesFile, configFile, chargesFile):
 			currentX = float (cutString (atoms, "\" x3=\"", "\" y3=\""))
 			currentY = float (cutString (atoms, "\" y3=\"", "\" z3=\""))
 			currentZ = float (cutString (atoms, "\" z3=\"", "\"/>"))
-			atomEntries.append ({'id': currentID, 'elementType': currentElementType, 'x': currentX, 'y': currentY, 'z': currentZ, 'charge': chargesDict [currentID], 'bondAtom1': 0, 'bondAtom2': 0, 'bondAtom3': 0, 'bondAtom4': 0})
+			try:
+				atomEntries.append ({'id': currentID, 'elementType': currentElementType, 'x': currentX, 'y': currentY, 'z': currentZ, 'charge': chargesDict [currentID], 'bondAtom1': 0, 'bondAtom2': 0, 'bondAtom3': 0, 'bondAtom4': 0})
+			except:
+				print ("Check all the input files. Cannot add atom entries. Code stopped at line: 99")
+				sys.exit (1)
 			nAtomsPerMonomer = int (cutString (atoms, "<atom id=\"", "\" elementType=\"").replace ("a", ""))
 
 	bondInput = cutString (cmlInput, "<bondArray>", "</bondArray>")
@@ -597,7 +602,7 @@ def createImpropers (polymerEntries, atomEntries, improperInfo, configFile):
 
 	return improperInfo
 
-def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo):
+def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, outputdir):
 
 	nAtoms = len (polymerEntries)
 	nBonds = len (bondInfo)
@@ -615,7 +620,7 @@ def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo
 	coords_y = []
 	coords_z = []
 
-	with open ("atomEntries.output", "w") as file:
+	with open (outputdir + "atomEntries.output", "w") as file:
 		for atomLine in polymerEntries:
 			file.write ("\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format (atomLine ['sino'], atomLine ['molType'], atomLine ['atomType'], atomLine ['charge'], atomLine ['x'], atomLine ['y'], atomLine ['z']))
 			coords_x.append (atomLine ['x'])
@@ -629,19 +634,19 @@ def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo
 	coords_zlo = min (coords_z) - 0.5 * min (coords_z)
 	coords_zhi = max (coords_z) + 0.5 * max (coords_z)
 
-	with open ("bondEntries.output", "w") as file:
+	with open (outputdir + "bondEntries.output", "w") as file:
 		for bondLine in bondInfo:
 			file.write ("\t{}\t{}\t{}\t{}\n".format (bondLine ['sino'], bondLine ['bondType'], bondLine ['bondAtom1'], bondLine ['bondAtom2']))
 
-	with open ("angleEntries.output", "w") as file:
+	with open (outputdir + "angleEntries.output", "w") as file:
 		for angleLine in angleInfo:
 			file.write ("\t{}\t{}\t{}\t{}\t{}\n".format (angleLine ['sino'], angleLine ['angleType'], angleLine ['angleAtom1'], angleLine ['angleAtom2'], angleLine ['angleAtom3']))
 
-	with open ("dihedralEntries.output", "w") as file:
+	with open (outputdir + "dihedralEntries.output", "w") as file:
 		for dihedralLine in dihedralInfo:
 			file.write ("\t{}\t{}\t{}\t{}\t{}\t{}\n".format (dihedralLine ['sino'], dihedralLine ['dihType'], dihedralLine ['dihAtom1'], dihedralLine ['dihAtom2'], dihedralLine ['dihAtom3'], dihedralLine ['dihAtom4']))
 
-	with open ("output.data", "w") as file:
+	with open (outputdir + "output.data", "w") as file:
 		file.write ("Created by you v1.8.1 on today, this month, this year, current time.\n\n\t{}\tatoms\n\t{}\tbonds\n\t{}\tangles\n\t{}\tdihedrals\n\t{}\timpropers\n\n\t{} atom types\n\t{} bond types\n\t{} angle types\n\t{} dihedral types\n\t{} improper types\n\n\t{}\t{}\txlo xhi\n\t{}\t{}\tylo yhi\n\t{}\t{}\tzlo zhi\n\nMasses\n\n\t1\t13.0907\t#CG311 CH\n\t2\t14.1707\t#CG321 CH2\n\t3\t15.2507\t#CG331 CH3\n\nAtoms\n\n".format (nAtoms, nBonds, nAngles, nDihedrals, nImpropers, nAtomTypes, nBondTypes, nAngleTypes, nDihedralTypes, nImproperTypes, round (coords_xlo, 4), round (coords_xhi, 4), round (coords_ylo, 4), round (coords_yhi, 4), round (coords_zlo, 4), round (coords_zhi, 4)))
 
 		for atomLine in polymerEntries:
@@ -660,11 +665,12 @@ def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo
 			file.write ("\t{}\t{}\t{}\t{}\t{}\t{}\n".format (dihedralLine ['sino'], dihedralLine ['dihType'], dihedralLine ['dihAtom1'], dihedralLine ['dihAtom2'], dihedralLine ['dihAtom3'], dihedralLine ['dihAtom4']))
 
 if __name__ == '__main__':
-	parser = a.ArgumentParser (description = "Read CML files")
+	parser = a.ArgumentParser (formatter_class = a.RawDescriptionHelpFormatter, description = "~~~~~~~~~~~~~~~~~\nABOUT THE PROGRAM\n~~~~~~~~~~~~~~~~~\n\ncreatePolymer.py can be used to generate LAMMPS data file for polymeric materials. Follow the steps below,\n\n   1. Create the monomer structure using Avogadro software\n\n   2. Carry out energy minimization of the structure\n\n   3. Orient the monomer along a prefered axis\n\n   4. Save the structure in CML format\n\nUse the following arguments to run the program\n\n   1. --cml Specify the input CML file containing energy minimized monomer structure\n\n   2. --atomTypes Mention the atom type number for the corresponding 'element type' in CML input\n\n   3. --config Config files can be used to input additional parameters such as\n\n\t(i) translateAxis: Same as the axis of orientation used in Avogadro software while creating the monomer\n\n\t(ii) translateDistance: Equal to the distance between identical atoms in two adjacent monomeric units\n\n\t(iii) endGroup1 and endGroup2: Defines the connection point for the monomers\n\n\t(iv) repeatMonomers: Number of monomers required in the polymer\n\n\t(v) mainChain: If the polymer contains side groups, then specify the main chain atoms\n\n\t(vi) pendantGroup: Define the first atom of the pendant group. This information is used to define improper dihedral angles to maintain the necessary tacticity\n\timproper: Number of impropers required. Currently set as 1 by default.\n\n\t~~~~~~~~~~~~~~~~~~~~\n\tExample config file:\n\t~~~~~~~~~~~~~~~~~~~~\n\n\ttranslateAxis: x\n\ttranslateDistance: 2.6\n\tendGroup1: a1\n\tendGroup2: a2\n\trepeatMonomers: 10\n\tmainChain: a1, a2\n\tpendantGroup: a3\n\timproper: 1\n\n\t~~~~~~~~~~~~~~~~~~~~\n\n")
 	parser.add_argument ("--cml", "-c", type = str, required = True)
 	parser.add_argument ("--atomtypes", "-at", type = str, required = True)
 	parser.add_argument ("--config", "-co", type = str, required = True)
 	parser.add_argument ("--charges", "-ch", type = str, required = True)
+	parser.add_argument ("--outputdir", "-od", type = str, default = "")
 	args = parser.parse_args ()
 	polymerEntries, atomEntries, atomTypes = createPolymer (args.cml, args.atomtypes, args.config, args.charges)
 
@@ -684,4 +690,4 @@ if __name__ == '__main__':
 	dihedralInfo, dihTypeArr = createDihedrals (polymerEntries, dihedralInfo, angleInfo, bondInfo)
 	improperInfo = createImpropers (polymerEntries, atomEntries, improperInfo, args.config)
 
-	printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo)
+	printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, args.outputdir)
