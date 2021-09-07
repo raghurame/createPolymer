@@ -664,6 +664,21 @@ def printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo
 		for dihedralLine in dihedralInfo:
 			file.write ("\t{}\t{}\t{}\t{}\t{}\t{}\n".format (dihedralLine ['sino'], dihedralLine ['dihType'], dihedralLine ['dihAtom1'], dihedralLine ['dihAtom2'], dihedralLine ['dihAtom3'], dihedralLine ['dihAtom4']))
 
+	with open (outputdir + "bondTypes.output", "w") as file:
+		file.write ("atomType1 atomType2 bondType\n")
+		for type_ in bondTypeArr [1:]:
+			file.write ("{} {} {}\n".format (type_ ['atom1'], type_ ['atom2'], type_ ['bondType']))
+
+	with open (outputdir + "angleTypes.output", "w") as file:
+		file.write ("atomType1 atomType2 atomType3 angleType\n")
+		for type_ in angleTypeArr [1:]:
+			file.write ("{} {} {} {}\n".format (type_ ['atom1'], type_ ['atom2'], type_ ['atom3'], type_ ['angleType']))
+
+	with open (outputdir + "dihTypes.output", "w") as file:
+		file.write ("atomType1 atomType2 atomType3 atomType4 dihType\n")
+		for type_ in dihTypeArr [1:]:
+			file.write ("{} {} {} {} {}\n".format (type_ ['atom1'], type_ ['atom2'], type_ ['atom3'], type_ ['atom4'], type_ ['dihType']))
+
 if __name__ == '__main__':
 	parser = a.ArgumentParser (formatter_class = a.RawDescriptionHelpFormatter, description = "~~~~~~~~~~~~~~~~~\nABOUT THE PROGRAM\n~~~~~~~~~~~~~~~~~\n\ncreatePolymer.py can be used to generate LAMMPS data file for polymeric materials. Follow the steps below,\n\n   1. Create the monomer structure using Avogadro software\n\n   2. Carry out energy minimization of the structure\n\n   3. Orient the monomer along a prefered axis\n\n   4. Save the structure in CML format\n\nUse the following arguments to run the program\n\n   1. --cml Specify the input CML file containing energy minimized monomer structure\n\n   2. --atomTypes Mention the atom type number for the corresponding 'element type' in CML input\n\n   3. --config Config files can be used to input additional parameters such as\n\n\t(i) translateAxis: Same as the axis of orientation used in Avogadro software while creating the monomer\n\n\t(ii) translateDistance: Equal to the distance between identical atoms in two adjacent monomeric units\n\n\t(iii) endGroup1 and endGroup2: Defines the connection point for the monomers\n\n\t(iv) repeatMonomers: Number of monomers required in the polymer\n\n\t(v) mainChain: If the polymer contains side groups, then specify the main chain atoms\n\n\t(vi) pendantGroup: Define the first atom of the pendant group. This information is used to define improper dihedral angles to maintain the necessary tacticity\n\timproper: Number of impropers required. Currently set as 1 by default.\n\n\t~~~~~~~~~~~~~~~~~~~~\n\tExample config file:\n\t~~~~~~~~~~~~~~~~~~~~\n\n\ttranslateAxis: x\n\ttranslateDistance: 2.6\n\tendGroup1: a1\n\tendGroup2: a2\n\trepeatMonomers: 10\n\tmainChain: a1, a2\n\tpendantGroup: a3\n\timproper: 1\n\n\t~~~~~~~~~~~~~~~~~~~~\n\n")
 	parser.add_argument ("--cml", "-c", type = str, required = True)
