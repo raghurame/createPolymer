@@ -693,24 +693,6 @@ def printMolFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo,
 	nDihedralTypes = len (dihTypeArr) - 1
 	nImproperTypes = 1
 
-	coords_x = []
-	coords_y = []
-	coords_z = []
-
-	with open (outputdir + "atomEntries.output", "w") as file:
-		for atomLine in polymerEntries:
-			file.write ("\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format (atomLine ['sino'], atomLine ['molType'], atomLine ['atomType'], atomLine ['charge'], atomLine ['x'], atomLine ['y'], atomLine ['z']))
-			coords_x.append (atomLine ['x'])
-			coords_y.append (atomLine ['y'])
-			coords_z.append (atomLine ['z'])
-
-	coords_xlo = min (coords_x) - 0.5 * min (coords_x)
-	coords_xhi = max (coords_x) + 0.5 * max (coords_x)
-	coords_ylo = min (coords_y) - 0.5 * min (coords_y)
-	coords_yhi = max (coords_y) + 0.5 * max (coords_y)
-	coords_zlo = min (coords_z) - 0.5 * min (coords_z)
-	coords_zhi = max (coords_z) + 0.5 * max (coords_z)
-
 	with open (outputdir + "output.mol", "w") as file:
 		file.write ("# Created by you v1.8.1 on today, this month, this year, current time.\n{}\tatoms\n{}\tbonds\n{}\tangles\n{}\tdihedrals\n{}\timpropers\n\n".format (nAtoms, nBonds, nAngles, nDihedrals, nImpropers))
 
@@ -737,6 +719,16 @@ def printMolFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo,
 		file.write ("\nDihedrals\n\n")
 		for dihedralLine in dihedralInfo:
 			file.write ("\t{}\t{}\t{}\t{}\t{}\t{}\n".format (dihedralLine ['sino'], dihedralLine ['dihType'], dihedralLine ['dihAtom1'], dihedralLine ['dihAtom2'], dihedralLine ['dihAtom3'], dihedralLine ['dihAtom4']))
+
+def printXYZFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, outputdir):
+
+	nAtoms = len (polymerEntries)
+
+	with open (outputdir + "output.xyz", "w") as file:
+		file.write ("{}\n\n".format (nAtoms))
+
+		for atomLine in polymerEntries:
+			file.write ("C\t{}\t{}\t{}\n".format (atomLine ['x'], atomLine ['y'], atomLine ['z']))
 
 if __name__ == '__main__':
 	parser = a.ArgumentParser (formatter_class = a.RawDescriptionHelpFormatter, description = "~~~~~~~~~~~~~~~~~\nABOUT THE PROGRAM\n~~~~~~~~~~~~~~~~~\n\ncreatePolymer.py can be used to generate LAMMPS data file for polymeric materials. Follow the steps below,\n\n   1. Create the monomer structure using Avogadro software\n\n   2. Carry out energy minimization of the structure\n\n   3. Orient the monomer along a prefered axis\n\n   4. Save the structure in CML format\n\nUse the following arguments to run the program\n\n   1. --cml Specify the input CML file containing energy minimized monomer structure\n\n   2. --atomTypes Mention the atom type number for the corresponding 'element type' in CML input\n\n   3. --config Config files can be used to input additional parameters such as\n\n\t(i) translateAxis: Same as the axis of orientation used in Avogadro software while creating the monomer\n\n\t(ii) translateDistance: Equal to the distance between identical atoms in two adjacent monomeric units\n\n\t(iii) endGroup1 and endGroup2: Defines the connection point for the monomers\n\n\t(iv) repeatMonomers: Number of monomers required in the polymer\n\n\t(v) mainChain: If the polymer contains side groups, then specify the main chain atoms\n\n\t(vi) pendantGroup: Define the first atom of the pendant group. This information is used to define improper dihedral angles to maintain the necessary tacticity\n\timproper: Number of impropers required. Currently set as 1 by default.\n\n\t~~~~~~~~~~~~~~~~~~~~\n\tExample config file:\n\t~~~~~~~~~~~~~~~~~~~~\n\n\ttranslateAxis: x\n\ttranslateDistance: 2.6\n\tendGroup1: a1\n\tendGroup2: a2\n\trepeatMonomers: 10\n\tmainChain: a1, a2\n\tpendantGroup: a3\n\timproper: 1\n\n\t~~~~~~~~~~~~~~~~~~~~\n\n")
@@ -766,3 +758,4 @@ if __name__ == '__main__':
 
 	printDataFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, args.outputdir)
 	printMolFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, args.outputdir)
+	printXYZFile (polymerEntries, atomTypeArr, bondInfo, bondTypeArr, angleInfo, angleTypeArr, dihedralInfo, dihTypeArr, improperInfo, args.outputdir)
